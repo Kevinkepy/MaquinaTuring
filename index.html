@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Máquina de Turing - Resta Binaria | Kevin Geovany</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Librería Vis Network para el grafo interactivo -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --purple-1: #CFC2F4;
+            --purple-2: #978AD8;
+            --purple-3: #6E60D6;
+            --purple-4: #3526B2;
+            --purple-5: #291774;
+            --page-bg: #f7f5fc;
+            --graph-bg: #faf9ff;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--page-bg);
+            color: #111827;
+            line-height: 1.5;
+        }
+
+        .font-mono {
+            font-family: 'Fira Code', monospace;
+        }
+
+        input:focus-visible,
+        button:focus-visible {
+            outline: 3px solid var(--purple-3);
+            outline-offset: 3px;
+        }
+
+        input[type="text"] {
+            border-color: #d1d5db;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--purple-4);
+            box-shadow: 0 0 0 3px rgba(53, 38, 178, 0.18);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+        }
+
+        #btnPause:hover {
+            background-color: var(--purple-1);
+        }
+
+        #btnReset:hover {
+            background-color: var(--purple-4);
+        }
+
+        /* Cinta (Tape) Styles */
+        #tape-container {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            overflow-x: auto;
+            overflow-y: hidden;
+            min-height: 126px;
+            padding: 1.5rem 1rem 2rem;
+        }
+
+        .tape-cell {
+            min-width: 60px;
+            height: 70px;
+            border: 2px solid var(--purple-2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            background-color: var(--purple-1);
+            color: var(--purple-5);
+            margin: 0 4px;
+            border-radius: 8px;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .tape-cell.active {
+            border-color: var(--purple-5);
+            background-color: var(--purple-3);
+            color: #ffffff;
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 10px 15px -3px rgba(53, 38, 178, 0.3);
+        }
+
+        /* Indicador Cabezal */
+        .tape-cell.active::after {
+            content: '▲';
+            position: absolute;
+            bottom: -30px;
+            color: var(--purple-5);
+            font-size: 1.2rem;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        /* Contenedor del Grafo */
+        #network-container {
+            width: 100%;
+            height: 540px;
+            min-height: 420px;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: radial-gradient(circle at 50% 45%, #ffffff 0, var(--graph-bg) 75%);
+        }
+
+        #speedSlider {
+            accent-color: var(--purple-4);
+        }
+
+        @media (max-width: 640px) {
+            #network-container {
+                height: 430px;
+                min-height: 380px;
+            }
+
+            #tape-container {
+                justify-content: flex-start;
+                min-height: 112px;
+                padding: 1.25rem 0.75rem 1.75rem;
+            }
+
+            .tape-cell {
+                min-width: 48px;
+                height: 58px;
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--purple-1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--purple-3);
+        }
+
+        .panel-border {
+            border: 1px solid var(--purple-1);
+        }
+
+        .video-frame {
+            width: min(100%, 960px);
+            aspect-ratio: 16 / 9;
+            border: 2px solid var(--purple-2);
+            border-radius: 12px;
+            background: var(--graph-bg);
+            box-shadow: 0 8px 24px rgba(41, 23, 116, 0.1);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white border-b-4" style="border-color: var(--purple-4);">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center p-6 gap-4">
+            <div>
+                <h1 class="text-3xl font-bold" style="color: var(--purple-5);">Máquina de Turing</h1>
+                <p class="text-gray-500 mt-1">Proyecto Final - Resta de Números Binarios (Ejercicio 2)</p>
+            </div>
+            <div class="text-right">
+                <p class="font-semibold" style="color: var(--purple-5);">Kevin Geovany Martinez Perez</p>
+                <p class="text-sm text-gray-500">Carné: 4090-24-6328 | Autómatas y Lenguajes Formales</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto w-full p-6 grid grid-cols-1 gap-8">
+
+        <!-- Grafo interactivo y Cinta -->
+        <section class="grid grid-cols-1 2xl:grid-cols-2 gap-8">
+
+            <!-- Grafo (Vis-Network) -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg panel-border">
+                <h2 class="text-xl font-bold mb-4" style="color: var(--purple-5);">Grafo de Transiciones</h2>
+                <div id="network-container"></div>
+            </div>
+
+            <!-- Controles y Cinta -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg panel-border flex flex-col justify-between">
+                <div>
+                    <h2 class="text-xl font-bold mb-4" style="color: var(--purple-5);">Configuración y Cinta</h2>
+                    <div class="flex flex-col md:flex-row gap-4 items-end mb-6">
+                        <div class="flex-grow w-full">
+                            <label for="inputString" class="block text-sm font-semibold text-gray-600 mb-2">Cadena
+                                Inicial (Ej:
+                                1010B0011):</label>
+                            <input type="text" id="inputString"
+                                class="w-full bg-gray-50 border border-gray-300 text-gray-900 rounded-lg p-3 font-mono focus:outline-none focus:ring-2"
+                                value="1010B0011" placeholder="1010B0011" autocomplete="off" spellcheck="false">
+                        </div>
+                        <button type="button" onclick="loadTape()"
+                            class="text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap shadow-md hover:shadow-lg"
+                            style="background-color: var(--purple-4);">
+                            Cargar Cinta
+                        </button>
+                    </div>
+
+                    <div id="sysMessage" class="mb-4 p-3 rounded-lg hidden font-bold text-sm text-center"></div>
+
+                    <!-- Detalles del Estado Actual -->
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-2 px-4">
+                        <span class="text-sm font-bold text-gray-500">Estado Actual: <span id="currentStateDisplay"
+                                class="font-mono px-2 py-1 rounded text-white"
+                                style="background-color: var(--purple-5);">q0</span></span>
+                        <span class="text-sm font-bold text-gray-500">Resultado: <span id="resultDisplay"
+                                class="font-mono" style="color: var(--purple-5);">—</span></span>
+                        <span class="text-sm font-bold text-gray-500">Pasos: <span id="stepCountDisplay"
+                                class="font-mono" style="color: var(--purple-4);">0</span></span>
+                    </div>
+
+                    <!-- Cinta Gráfica -->
+                    <div id="tape-container"
+                        class="w-full max-w-full font-mono relative bg-gray-50 rounded-xl border border-gray-200">
+                        <!-- Las celdas se inyectan aquí con JS -->
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
+                <div class="mt-6 flex flex-wrap justify-center gap-3">
+                    <button type="button" id="btnPlay" onclick="playSimulation()"
+                        class="text-white py-2 px-5 rounded-lg font-bold transition-all shadow-md"
+                        style="background-color: var(--purple-4);">
+                        ▶ Iniciar Automático
+                    </button>
+                    <button type="button" id="btnPause" onclick="pauseSimulation()"
+                        class="py-2 px-5 rounded-lg font-bold transition-all shadow-md hidden"
+                        style="background-color: var(--purple-2); color: var(--purple-5);">
+                        ⏸ Pausar
+                    </button>
+                    <button type="button" id="btnStep" onclick="stepSimulation()"
+                        class="text-gray-800 py-2 px-5 rounded-lg font-bold transition-all shadow-md border"
+                        style="background-color: var(--purple-1); border-color: var(--purple-3);">
+                        ⏭ Paso a Paso
+                    </button>
+                    <button type="button" id="btnReset" onclick="resetSimulation()"
+                        class="text-white py-2 px-5 rounded-lg font-bold transition-all shadow-md"
+                        style="background-color: var(--purple-5);">
+                        ↺ Reiniciar
+                    </button>
+
+                    <div class="flex items-center gap-2 ml-auto">
+                        <label for="speedSlider" class="text-xs font-bold text-gray-500">Velocidad:</label>
+                        <input type="range" id="speedSlider" min="50" max="1000" value="300" class="w-24"
+                            aria-label="Intervalo entre pasos">
+                        <output id="speedDisplay" for="speedSlider" class="text-xs font-mono text-gray-600">300
+                            ms</output>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Teoría y Tablas -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white p-6 rounded-2xl shadow-lg panel-border">
+                <h2 class="text-xl font-bold mb-4" style="color: var(--purple-5);">Descripción Formal (Séptupla)</h2>
+                <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg text-sm text-gray-700 space-y-3 font-mono">
+                    <p><strong>M</strong> = (Q, Σ, Γ, δ, q0, □, F)</p>
+                    <p><strong>Q</strong> = {q0, q1, q2, q3, q4, q5, q6, q7, q8}</p>
+                    <p><strong>Σ</strong> = {0, 1}</p>
+                    <p><strong>Γ</strong> = {0, 1, B, □}</p>
+                    <p><strong>q0</strong> = q0 (Estado inicial)</p>
+                    <p><strong>B</strong> = Separador; <strong>□</strong> = Símbolo blanco</p>
+                    <p><strong>F</strong> = {q8} (Estado de Aceptación)</p>
+                    <hr class="border-gray-300 my-2">
+                    <p class="text-xs text-gray-500 mt-2 font-sans">
+                        <strong>Lógica:</strong> El cabezal busca el último bit del segundo número para restarlo
+                        (q0-q4). Realiza el préstamo sobre el primer número (q5-q6). Si hay acarreo, se propaga.
+                        Finalmente, los estados q7 y q8 limpian el residuo y aceptan.
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-2xl shadow-lg panel-border overflow-auto max-h-[400px]">
+                <h2 class="text-xl font-bold mb-4" style="color: var(--purple-5);">Tabla de Transiciones (δ)</h2>
+                <table class="w-full text-left text-sm text-gray-700 font-mono border-collapse">
+                    <thead class="text-white" style="background-color: var(--purple-5);">
+                        <tr>
+                            <th class="p-3 rounded-tl-lg">Estado (q)</th>
+                            <th class="p-3">Lee (γ)</th>
+                            <th class="p-3">Escribe (γ')</th>
+                            <th class="p-3">Mov.</th>
+                            <th class="p-3 rounded-tr-lg">Sig. (q')</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transitionTableBody" class="divide-y divide-gray-200 bg-gray-50">
+                        <!-- Generado por JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-2xl shadow-lg panel-border">
+            <h2 class="text-xl font-bold mb-2" style="color: var(--purple-5);">Video de explicación</h2>
+            <div class="flex justify-center">
+                <iframe class="video-frame" src="about:blank" title="Video de explicación de la máquina de Turing"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin" allowfullscreen>
+                </iframe>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- COLORES DE LA PALETA ---
+        const colors = {
+            purple1: '#CFC2F4',
+            purple2: '#978AD8',
+            purple3: '#6E60D6',
+            purple4: '#3526B2',
+            purple5: '#291774',
+            canvas: '#faf9ff',
+            white: '#ffffff',
+            gray: '#e5e7eb'
+        };
+
+        // --- DEFINICIÓN DE LA MÁQUINA DE TURING ---
+        const transitions = {
+            'q0': {
+                '0': { write: '0', move: 'R', next: 'q0' },
+                '1': { write: '1', move: 'R', next: 'q0' },
+                'B': { write: 'B', move: 'R', next: 'q1' }
+            },
+            'q1': {
+                '0': { write: '0', move: 'R', next: 'q1' },
+                '1': { write: '1', move: 'R', next: 'q2' },
+                '□': { write: '□', move: 'L', next: 'q7' }
+            },
+            'q2': {
+                '0': { write: '0', move: 'R', next: 'q2' },
+                '1': { write: '1', move: 'R', next: 'q2' },
+                '□': { write: '□', move: 'L', next: 'q3' }
+            },
+            'q3': {
+                '0': { write: '1', move: 'L', next: 'q3' },
+                '1': { write: '0', move: 'L', next: 'q4' }
+            },
+            'q4': {
+                '0': { write: '0', move: 'L', next: 'q4' },
+                '1': { write: '1', move: 'L', next: 'q4' },
+                'B': { write: 'B', move: 'L', next: 'q5' }
+            },
+            'q5': {
+                '0': { write: '1', move: 'L', next: 'q5' },
+                '1': { write: '0', move: 'R', next: 'q6' }
+            },
+            'q6': {
+                '0': { write: '0', move: 'R', next: 'q6' },
+                '1': { write: '1', move: 'R', next: 'q6' },
+                'B': { write: 'B', move: 'R', next: 'q1' }
+            },
+            'q7': {
+                '0': { write: '□', move: 'L', next: 'q7' },
+                'B': { write: '□', move: 'S', next: 'q8' }
+            }
+        };
+
+        // --- ESTADO GLOBAL ---
+        let tape = [];
+        let headPosition = 0;
+        let currentState = 'q0';
+        let isRunning = false;
+        let simulationInterval;
+        let steps = 0;
+        let loadedInput = '';
+        const PADDING = 10;
+
+        // --- GRAFO VIS-NETWORK ---
+        let network = null;
+        let nodesDataset = null;
+        let edgesDataset = null;
+        let highlightedNode = null;
+        let networkResizeTimeout;
+        let networkResizeObserver = null;
+
+        function initNetwork() {
+            const container = document.getElementById('network-container');
+            if (typeof vis === 'undefined') {
+                container.innerHTML = '<p class="p-6 text-center text-gray-600">No se pudo cargar el grafo interactivo. La cinta y la simulación siguen disponibles.</p>';
+                return;
+            }
+
+            // Posiciones estáticas según tu imagen
+            const nodesArray = [
+                { id: 'start', label: '', x: -480, y: 0, shape: 'dot', size: 1, color: { background: colors.canvas, border: colors.canvas } },
+                { id: 'q0', label: 'q0', x: -360, y: 0 },
+                { id: 'q1', label: 'q1', x: -180, y: 0 },
+                { id: 'q2', label: 'q2', x: 0, y: 0 },
+                { id: 'q3', label: 'q3', x: 180, y: 0 },
+                { id: 'q4', label: 'q4', x: 360, y: 0 },
+                { id: 'q5', label: 'q5', x: 360, y: -190 },
+                { id: 'q6', label: 'q6', x: 0, y: -280 },
+                { id: 'q7', label: 'q7', x: -180, y: 220 },
+                { id: 'q8-ring', label: 'q8', x: 0, y: 220, margin: 15, borderWidth: 2 },
+                { id: 'q8', label: 'q8', x: 0, y: 220, margin: 8, borderWidth: 2 }
+            ];
+
+            // Configuración visual base de los Nodos (Círculos grandes)
+            const styledNodes = nodesArray.map(n => ({
+                ...n,
+                shape: n.shape || 'circle',
+                margin: n.margin ?? 15,
+                font: { size: 24, color: colors.purple5, face: 'Fira Code' },
+                color: n.color || { background: colors.purple1, border: colors.purple2 },
+                borderWidth: n.borderWidth ?? 2,
+                physics: false,
+                fixed: true
+            }));
+
+            nodesDataset = new vis.DataSet(styledNodes);
+
+            const edgesArray = [
+                { from: 'start', to: 'q0', label: '' },
+                // q0
+                { from: 'q0', to: 'q0', label: '1;1,R | 0;0,R', selfReferenceSize: 44 },
+                { from: 'q0', to: 'q1', label: 'B;B,R' },
+                // q1
+                { from: 'q1', to: 'q1', label: '0;0,R', selfReferenceSize: 44 },
+                { from: 'q1', to: 'q2', label: '1;1,R' },
+                { from: 'q1', to: 'q7', label: '□;□,L', smooth: { enabled: true, type: 'curvedCW', roundness: 0.2 } },
+                // q2
+                { from: 'q2', to: 'q2', label: '1;1,R | 0;0,R', selfReferenceSize: 44 },
+                { from: 'q2', to: 'q3', label: '□;□,L' },
+                // q3
+                { from: 'q3', to: 'q3', label: '0;1,L', selfReferenceSize: 44 },
+                { from: 'q3', to: 'q4', label: '1;0,L' },
+                // q4
+                { from: 'q4', to: 'q4', label: '1;1,L | 0;0,L', selfReferenceSize: 44 },
+                { from: 'q4', to: 'q5', label: 'B;B,L' },
+                // q5
+                { from: 'q5', to: 'q5', label: '0;1,L', selfReferenceSize: 44 },
+                { from: 'q5', to: 'q6', label: '1;0,R' },
+                // q6
+                { from: 'q6', to: 'q6', label: '1;1,R | 0;0,R', selfReferenceSize: 44 },
+                { from: 'q6', to: 'q1', label: 'B;B,R', smooth: { enabled: true, type: 'curvedCCW', roundness: 0.2 } },
+                // q7
+                { from: 'q7', to: 'q7', label: '0;□,L', selfReferenceSize: 44 },
+                { from: 'q7', to: 'q8', label: 'B;□,S' }
+            ];
+
+            edgesDataset = new vis.DataSet(edgesArray);
+
+            const data = { nodes: nodesDataset, edges: edgesDataset };
+
+            // Configuración CRÍTICA del grafo: estático y de líneas rectas
+            const options = {
+                physics: false, // Posiciones fijas
+                autoResize: true,
+                edges: {
+                    smooth: false, // Líneas rectas obligatorias
+                    arrows: 'to',
+                    font: {
+                        size: 13,
+                        color: colors.purple5,
+                        face: 'Fira Code',
+                        align: 'horizontal',
+                        background: 'none',
+                        strokeWidth: 0,
+                        vadjust: -24
+                    },
+                    color: { color: colors.purple2, highlight: colors.purple4 },
+                    width: 2
+                },
+                interaction: {
+                    dragNodes: false,
+                    zoomView: true,
+                    dragView: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Inicializar vista y highlight
+            network.once('afterDrawing', function () {
+                network.fit();
+                highlightGraphNode('q0');
+            });
+            networkResizeObserver = new ResizeObserver(() => {
+                clearTimeout(networkResizeTimeout);
+                networkResizeTimeout = setTimeout(() => network.fit({ animation: false }), 100);
+            });
+            networkResizeObserver.observe(container);
+        }
+
+        function highlightGraphNode(stateId) {
+            if (!nodesDataset) return;
+            const nodeExists = nodesDataset.get(stateId);
+            if (nodeExists && highlightedNode === stateId) return;
+
+            const updates = [];
+            if (highlightedNode) {
+                updates.push({
+                    id: highlightedNode,
+                    color: { background: colors.purple1, border: colors.purple2 },
+                    borderWidth: highlightedNode === 'q8' ? 4 : 2
+                });
+            }
+            if (nodeExists) {
+                updates.push({
+                    id: stateId,
+                    color: { background: colors.purple3, border: colors.purple5 },
+                    borderWidth: 4
+                });
+            }
+            highlightedNode = nodeExists ? stateId : null;
+            nodesDataset.update(updates);
+        }
+
+        // --- LÓGICA DE INTERFAZ Y SIMULACIÓN ---
+        function populateTransitionTable() {
+            const tbody = document.getElementById('transitionTableBody');
+            tbody.innerHTML = '';
+            for (let state in transitions) {
+                for (let symbol in transitions[state]) {
+                    const t = transitions[state][symbol];
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-gray-100 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-2 border-b border-gray-200 font-bold" style="color: var(--purple-5);">${state}</td>
+                        <td class="p-2 border-b border-gray-200 font-bold">${symbol}</td>
+                        <td class="p-2 border-b border-gray-200 font-bold">${t.write}</td>
+                        <td class="p-2 border-b border-gray-200 font-bold" style="color: var(--purple-4);">${t.move}</td>
+                        <td class="p-2 border-b border-gray-200 font-bold" style="color: var(--purple-5);">${t.next}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            }
+        }
+
+        function showMessage(msg, type) {
+            const el = document.getElementById('sysMessage');
+            el.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700');
+            if (type === 'error') {
+                el.classList.add('bg-red-100', 'text-red-700');
+            } else {
+                el.classList.add('bg-green-100', 'text-green-700');
+            }
+            el.innerText = msg;
+        }
+
+        function loadTape() {
+            pauseSimulation();
+            let input = document.getElementById('inputString').value.trim();
+
+            if (!/^[01]+B[01]+$/.test(input)) {
+                showMessage("Formato inválido. Debe ser: [Binario]B[Binario].", "error");
+                return;
+            }
+
+            showMessage("Cinta cargada. Lista para simular.", "success");
+
+            loadedInput = input;
+            let rawTapeStr = input;
+            tape = Array(PADDING).fill('□').concat(rawTapeStr.split(''), Array(PADDING).fill('□'));
+
+            headPosition = PADDING;
+            currentState = 'q0';
+            steps = 0;
+
+            toggleButtons(false);
+            document.getElementById('resultDisplay').innerText = '—';
+            updateUI();
+        }
+
+        function renderTape() {
+            const container = document.getElementById('tape-container');
+            container.innerHTML = '';
+            tape.forEach((symbol, index) => {
+                const cell = document.createElement('div');
+                cell.className = 'tape-cell';
+                if (index === headPosition) {
+                    cell.classList.add('active');
+                }
+                cell.innerText = symbol;
+                if (symbol === '□') cell.style.color = '#9ca3af'; // gray-400
+                if (symbol === 'B') cell.style.color = colors.purple4;
+
+                container.appendChild(cell);
+            });
+
+            const activeCell = container.querySelector('.active');
+            if (activeCell) {
+                container.scrollLeft = Math.max(
+                    0,
+                    activeCell.offsetLeft - (container.clientWidth - activeCell.offsetWidth) / 2
+                );
+            }
+        }
+
+        function updateUI() {
+            renderTape();
+            document.getElementById('currentStateDisplay').innerText = currentState;
+            document.getElementById('stepCountDisplay').innerText = steps;
+
+            highlightGraphNode(currentState);
+
+            if (currentState === 'q8') {
+                const result = tape.slice(PADDING, headPosition).join('').replace(/^0+(?=\d)/, '');
+                document.getElementById('resultDisplay').innerText = result;
+                showMessage(`¡Resta completada! Resultado: ${result}. Estado de aceptación (q8).`, "success");
+                toggleButtons(true);
+            } else if (currentState === 'q_error') {
+                const [minuend, subtrahend] = loadedInput.split('B');
+                const isUnderflow = BigInt(`0b${minuend}`) < BigInt(`0b${subtrahend}`);
+                showMessage(
+                    isUnderflow
+                        ? "Resta no admitida: el minuendo debe ser mayor o igual al sustraendo."
+                        : "Error: La máquina se detuvo sin transición válida.",
+                    "error"
+                );
+                pauseSimulation();
+            }
+        }
+
+        function toggleButtons(disabled) {
+            const btnPlay = document.getElementById('btnPlay');
+            const btnStep = document.getElementById('btnStep');
+            btnPlay.disabled = disabled;
+            btnStep.disabled = disabled;
+            if (disabled) {
+                btnPlay.classList.add('opacity-50', 'cursor-not-allowed');
+                btnStep.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnPlay.classList.remove('opacity-50', 'cursor-not-allowed');
+                btnStep.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function stepSimulation() {
+            if (currentState === 'q8' || currentState === 'q_error') return;
+
+            if (headPosition < 0) {
+                tape.unshift('□');
+                headPosition = 0;
+            }
+            if (headPosition >= tape.length) {
+                tape.push('□');
+            }
+
+            let currentSymbol = tape[headPosition];
+            let trans = (transitions[currentState] && transitions[currentState][currentSymbol]) ? transitions[currentState][currentSymbol] : null;
+
+            if (!trans) {
+                currentState = 'q_error';
+                updateUI();
+                return;
+            }
+
+            tape[headPosition] = trans.write;
+            currentState = trans.next;
+
+            if (trans.move === 'R') {
+                headPosition++;
+            } else if (trans.move === 'L') {
+                headPosition--;
+            }
+
+            steps++;
+            updateUI();
+        }
+
+        function playLoop() {
+            if (!isRunning) return;
+            stepSimulation();
+            if (currentState !== 'q8' && currentState !== 'q_error') {
+                let speed = document.getElementById('speedSlider').value;
+                simulationInterval = setTimeout(playLoop, speed);
+            } else {
+                pauseSimulation();
+            }
+        }
+
+        function playSimulation() {
+            if (currentState === 'q8' || currentState === 'q_error') return;
+            isRunning = true;
+            document.getElementById('btnPlay').classList.add('hidden');
+            document.getElementById('btnPause').classList.remove('hidden');
+            document.getElementById('btnStep').disabled = true;
+            document.getElementById('btnStep').classList.add('opacity-50');
+            playLoop();
+        }
+
+        function pauseSimulation() {
+            isRunning = false;
+            clearTimeout(simulationInterval);
+            document.getElementById('btnPause').classList.add('hidden');
+            document.getElementById('btnPlay').classList.remove('hidden');
+
+            if (currentState === 'q8' || currentState === 'q_error') {
+                toggleButtons(true);
+            } else {
+                document.getElementById('btnStep').disabled = false;
+                document.getElementById('btnStep').classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        function resetSimulation() {
+            loadTape();
+        }
+
+        // Inicialización al cargar la página
+        window.onload = () => {
+            populateTransitionTable();
+            loadTape();
+            initNetwork();
+            document.getElementById('speedSlider').addEventListener('input', event => {
+                document.getElementById('speedDisplay').value = `${event.target.value} ms`;
+            });
+        };
+    </script>
+</body>
+
+</html>
